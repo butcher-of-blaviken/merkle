@@ -58,13 +58,27 @@ func TestNew(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "not a power of 2",
+			args: args{
+				data: [][]byte{
+					[]byte("hello"),
+					[]byte("world"),
+					[]byte("today"),
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := New(tt.args.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
 				return
+			} else {
+				require.NoError(t, err)
 			}
 			if !reflect.DeepEqual(got.levels, tt.want.levels) {
 				t.Errorf("New() = %v, want %v", got, tt.want)

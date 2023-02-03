@@ -136,9 +136,8 @@ func (t *Tree) getSiblingIndex(i, level int) int {
 
 // New constructs a new merkle tree given some data.
 func New(data [][]byte) (*Tree, error) {
-	exponent := math.Log2(float64(len(data)))
-	if exponent != math.Trunc(exponent) {
-		return nil, errors.New("data length must be exact power of two")
+	if len(data)&(len(data)-1) != 0 {
+		return nil, fmt.Errorf("data length must be exact power of two, got: %d", len(data))
 	}
 
 	// build the bottom-most level of the tree by hashing the passed in data
@@ -150,7 +149,10 @@ func New(data [][]byte) (*Tree, error) {
 		bottom = append(bottom, right)
 	}
 
-	allLevels := []level{bottom}
+	var (
+		allLevels = []level{bottom}
+		exponent  = math.Log2(float64(len(data)))
+	)
 	// build the tree in a bottom up fashion, starting
 	// from the deepest level.
 	// level i + 1 is constructing by pairwise hashing the nodes
@@ -161,10 +163,7 @@ func New(data [][]byte) (*Tree, error) {
 			currLevel level
 		)
 		for n := 0; n < len(prevLevel); n += 2 {
-			var concat []byte
-			concat = append(concat, prevLevel[n][:]...)
-			concat = append(concat, prevLevel[n+1][:]...)
-			currLevel = append(currLevel, sha256.Sum256(concat))
+			currLevel = append(currLevel, sha256.Sum256(concat(prevLevel[n][:], prevLevel[n+1][:])))
 		}
 		allLevels = append(allLevels, currLevel)
 	}
