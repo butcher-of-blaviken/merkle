@@ -1,4 +1,4 @@
-package merkle
+package hashtree
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/butcher-of-blaviken/merkle/common"
 )
 
 // Bytes32 is a convenience type to represent a 32 byte slice.
@@ -81,10 +83,10 @@ func (t *Tree) Verify(proof Proof, leaf, root Bytes32) bool {
 	for _, p := range proof {
 		if p.Index%2 == 0 {
 			// sibling is a left node, so concat that hash first then the proof node
-			hash = sha256.Sum256(concat(p.Hash[:], hash[:]))
+			hash = sha256.Sum256(common.Concat(p.Hash[:], hash[:]))
 		} else {
 			// sibling is a right node, so concat proof node first then the sibling
-			hash = sha256.Sum256(concat(hash[:], p.Hash[:]))
+			hash = sha256.Sum256(common.Concat(hash[:], p.Hash[:]))
 		}
 	}
 
@@ -163,7 +165,7 @@ func New(data [][]byte) (*Tree, error) {
 			currLevel level
 		)
 		for n := 0; n < len(prevLevel); n += 2 {
-			currLevel = append(currLevel, sha256.Sum256(concat(prevLevel[n][:], prevLevel[n+1][:])))
+			currLevel = append(currLevel, sha256.Sum256(common.Concat(prevLevel[n][:], prevLevel[n+1][:])))
 		}
 		allLevels = append(allLevels, currLevel)
 	}

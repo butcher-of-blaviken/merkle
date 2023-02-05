@@ -1,25 +1,16 @@
-package merkle
+package patricia
 
 import (
 	"bytes"
 	"encoding/hex"
+
+	"github.com/butcher-of-blaviken/merkle/common"
 )
 
 var (
 	// emptyNodeHash is the known keccak256 root hash of an empty trie.
 	emptyNodeHash, _ = hex.DecodeString("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
-
-// MPT stands for "Merkle-Patricia Trie", which is a fusion of
-// the merkle tree and patricia trie data structures.
-//
-// The intent is to provide a key-value store that provides
-// merkle proofs of membership.
-type MPT interface {
-	Trie
-	// Root returns the merkle root (i.e hash) of the entire MPT.
-	Root() []byte
-}
 
 type mpt struct {
 	root mptNode
@@ -33,10 +24,10 @@ func (m *mpt) Delete(key []byte) {
 // Get implements MPT
 func (m *mpt) Get(key []byte) (value []byte, err error) {
 	node := m.root
-	nibbles := bytesToNibbles(key)
+	nibbles := common.BytesToNibbles(key)
 	for {
 		if node == nil {
-			return nil, ErrKeyNotFound
+			return nil, common.ErrKeyNotFound
 		}
 		switch node.kind() {
 		case nodeKindBranch:
@@ -54,14 +45,14 @@ func (m *mpt) Get(key []byte) (value []byte, err error) {
 			if branch.value != nil {
 				return branch.value, nil
 			}
-			return nil, ErrKeyNotFound
+			return nil, common.ErrKeyNotFound
 		case nodeKindExtension:
 			// extract the common prefix from the nibbles that
 			// remain and the extension path.
 			extension := node.(*extensionNode)
-			commonPrefix := extractCommonPrefix(extension.path, nibbles)
+			commonPrefix := common.ExtractCommonPrefix(extension.path, nibbles)
 			if len(commonPrefix) < len(extension.path) {
-				return nil, ErrKeyNotFound
+				return nil, common.ErrKeyNotFound
 			}
 			// "skip" through all the common nibbles and jump to the next node.
 			// this is where the optimization kicks in.
@@ -76,7 +67,7 @@ func (m *mpt) Get(key []byte) (value []byte, err error) {
 			}
 			// otherwise, we're at a leaf (i.e no more child nodes) and we haven't
 			// found the provided path.
-			return nil, ErrKeyNotFound
+			return nil, common.ErrKeyNotFound
 		default:
 			panic("unexpected node kind - bug?")
 		}
@@ -86,7 +77,7 @@ func (m *mpt) Get(key []byte) (value []byte, err error) {
 // Put implements MPT
 func (m *mpt) Put(key []byte, value []byte) error {
 	node := &m.root
-	nibbles := bytesToNibbles(key)
+	nibbles := common.BytesToNibbles(key)
 	for {
 		// case: NULL node
 		if *node == nil {
@@ -111,7 +102,7 @@ func (m *mpt) Put(key []byte, value []byte) error {
 			}
 		case nodeKindExtension:
 			extension := (*node).(*extensionNode)
-			commonPrefix := extractCommonPrefix(extension.path, nibbles)
+			commonPrefix := common.ExtractCommonPrefix(extension.path, nibbles)
 			// only two cases we care about here:
 			// 1. common prefix length is less than the extension path length.
 			//   a. in this case we reduce the path size of this extension node and add
@@ -163,7 +154,7 @@ func (m *mpt) Put(key []byte, value []byte) error {
 			continue
 		case nodeKindLeaf:
 			leaf := (*node).(*leafNode)
-			commonPrefix := extractCommonPrefix(leaf.path, nibbles)
+			commonPrefix := common.ExtractCommonPrefix(leaf.path, nibbles)
 
 			// if the common prefix matches both the remaining nibbles and
 			// the leaf path, then we can update the leaf value in-place.
@@ -222,7 +213,7 @@ func (m *mpt) Root() []byte {
 	panic("unimplemented")
 }
 
-func NewMerklePatriciaTrie() MPT {
+func NewMerklePatriciaTrie() common.MPT {
 	return &mpt{
 		root: nil,
 	}
