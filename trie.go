@@ -20,7 +20,7 @@ type Trie interface {
 }
 
 type prefixTrieNode struct {
-	children [17]*prefixTrieNode // hexadecimal alphabet, so 17 possible children (0-f)
+	children [16]*prefixTrieNode // hexadecimal alphabet, so 16 possible children (0-f inclusive)
 	terminal bool                // whether we're a terminal node or not
 	value    []byte              // only set if terminal, nil otherwise
 }
@@ -39,7 +39,7 @@ func NewPrefixTrie() Trie {
 
 // Delete implements Trie
 func (p *prefixTrie) Delete(key []byte) {
-	nibbleKey := keybytesToHex(key)
+	nibbleKey := bytesToNibbles(key)
 	p.deleteHelper(p.root, nibbleKey)
 }
 
@@ -71,12 +71,15 @@ func (p *prefixTrie) deleteHelper(x *prefixTrieNode, key []byte) *prefixTrieNode
 // Get implements Trie
 func (p *prefixTrie) Get(key []byte) (value []byte, err error) {
 	root := p.root
-	nibbleKey := keybytesToHex(key)
+	nibbleKey := bytesToNibbles(key)
 	for _, b := range nibbleKey {
 		if root.children[b] == nil {
 			return nil, ErrKeyNotFound
 		}
 		root = root.children[b]
+	}
+	if root.value == nil {
+		return nil, ErrKeyNotFound
 	}
 	return root.value, nil
 }
@@ -84,7 +87,7 @@ func (p *prefixTrie) Get(key []byte) (value []byte, err error) {
 // Put implements Trie
 func (p *prefixTrie) Put(key []byte, value []byte) error {
 	root := p.root
-	nibbleKey := keybytesToHex(key)
+	nibbleKey := bytesToNibbles(key)
 	for _, b := range nibbleKey {
 		if root.children[b] == nil {
 			root.children[b] = &prefixTrieNode{}

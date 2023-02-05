@@ -6,16 +6,27 @@ func concat(a, b []byte) (r []byte) {
 	return
 }
 
-// keyToHex transforms the given []byte-ified hex string
+// bytesToNibbles transforms the given []byte-ified hex string
 // to a byte slice where each byte is exactly in the range
 // of 0-f (i.e, a nibble - half a byte or 4 bits).
-func keybytesToHex(s []byte) []byte {
-	l := len(s)*2 + 1
-	var nibbles = make([]byte, l)
+func bytesToNibbles(s []byte) (nibbles []byte) {
+	nibbles = make([]byte, len(s)*2)
 	for i, b := range s {
-		nibbles[i*2] = b / 16
-		nibbles[i*2+1] = b % 16
+		nibbles[2*i] = b >> 4
+		nibbles[2*i+1] = b % 16
 	}
-	nibbles[l-1] = 16
-	return nibbles
+	return
+}
+
+func extractCommonPrefix(a, b []byte) (r []byte) {
+	i := 0
+	for i < len(a) && i < len(b) {
+		if a[i] == b[i] {
+			r = append(r, a[i])
+		} else {
+			break
+		}
+		i++
+	}
+	return
 }
