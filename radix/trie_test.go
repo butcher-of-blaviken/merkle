@@ -1,4 +1,4 @@
-package merkle
+package radix
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestPrefixTrie_PutGet(t *testing.T) {
-	trie := NewPrefixTrie()
+	trie := New()
 	assert.NoError(t, trie.Put([]byte("hello"), []byte("world")))
 	assert.NoError(t, trie.Put([]byte("hell"), []byte("heaven")))
 
@@ -27,7 +27,7 @@ func TestPrefixTrie_PutGet(t *testing.T) {
 }
 
 func TestPrefixTrie_Delete(t *testing.T) {
-	trie := NewPrefixTrie()
+	trie := New()
 	assert.NoError(t, trie.Put([]byte("hello"), []byte("world")))
 	assert.NoError(t, trie.Put([]byte("hell"), []byte("heaven")))
 

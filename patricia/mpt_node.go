@@ -1,4 +1,4 @@
-package merkle
+package patricia
 
 type nodeKind int
 
@@ -27,27 +27,6 @@ var (
 	_ mptNode = &leafNode{}
 	_ mptNode = &extensionNode{}
 )
-
-func compactEncode(b []byte) []byte {
-	// b is nibbles
-	var term int
-	if b[len(b)-1] == 0xf {
-		term = 1
-	}
-	if term == 1 {
-		b = b[:len(b)-1]
-	}
-	oddlen := len(b) % 2
-	flags := 2*term + oddlen
-	if oddlen == 1 {
-		// odd length path
-		b = append([]byte{byte(flags)}, b...)
-	} else {
-		// even length path
-		b = append([]byte{byte(flags), 0}, b...)
-	}
-	return b
-}
 
 // leafNode is a node in an mpt that has no children. They contain
 // what remains of the path (from the root) and an rlp-encoded value

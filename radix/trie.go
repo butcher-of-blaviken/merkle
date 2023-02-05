@@ -1,23 +1,10 @@
-package merkle
+package radix
 
-import "fmt"
-
-var (
-	ErrKeyNotFound = fmt.Errorf("key not found")
+import (
+	"github.com/butcher-of-blaviken/merkle/common"
 )
 
-var _ Trie = &prefixTrie{}
-
-// Trie defines the interface for a trie data structure.
-// A trie is a search tree that implements a key-value store.
-type Trie interface {
-	// Get returns the value set for the provided key, if the key is in the trie.
-	Get(key []byte) (value []byte, err error)
-	// Put inserts a key-value pair into the trie.
-	Put(key, value []byte) error
-	// Delete removes the values associated with the provided key from the trie.
-	Delete(key []byte)
-}
+var _ common.Trie = &prefixTrie{}
 
 type prefixTrieNode struct {
 	children [16]*prefixTrieNode // hexadecimal alphabet, so 16 possible children (0-f inclusive)
@@ -29,9 +16,9 @@ type prefixTrie struct {
 	root *prefixTrieNode
 }
 
-// NewPrefixTrie returns a trie that is implemented using a basic prefix trie.
+// New returns a trie that is implemented using a basic prefix trie.
 // The alphabet is the hexadecimal one, from 0-f.
-func NewPrefixTrie() Trie {
+func New() common.Trie {
 	return &prefixTrie{
 		root: &prefixTrieNode{},
 	}
@@ -39,7 +26,7 @@ func NewPrefixTrie() Trie {
 
 // Delete implements Trie
 func (p *prefixTrie) Delete(key []byte) {
-	nibbleKey := bytesToNibbles(key)
+	nibbleKey := common.BytesToNibbles(key)
 	p.deleteHelper(p.root, nibbleKey)
 }
 
@@ -71,15 +58,15 @@ func (p *prefixTrie) deleteHelper(x *prefixTrieNode, key []byte) *prefixTrieNode
 // Get implements Trie
 func (p *prefixTrie) Get(key []byte) (value []byte, err error) {
 	root := p.root
-	nibbleKey := bytesToNibbles(key)
+	nibbleKey := common.BytesToNibbles(key)
 	for _, b := range nibbleKey {
 		if root.children[b] == nil {
-			return nil, ErrKeyNotFound
+			return nil, common.ErrKeyNotFound
 		}
 		root = root.children[b]
 	}
 	if root.value == nil {
-		return nil, ErrKeyNotFound
+		return nil, common.ErrKeyNotFound
 	}
 	return root.value, nil
 }
@@ -87,7 +74,7 @@ func (p *prefixTrie) Get(key []byte) (value []byte, err error) {
 // Put implements Trie
 func (p *prefixTrie) Put(key []byte, value []byte) error {
 	root := p.root
-	nibbleKey := bytesToNibbles(key)
+	nibbleKey := common.BytesToNibbles(key)
 	for _, b := range nibbleKey {
 		if root.children[b] == nil {
 			root.children[b] = &prefixTrieNode{}
