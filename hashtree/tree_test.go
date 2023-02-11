@@ -181,7 +181,7 @@ func TestVerify(t *testing.T) {
 
 		proof, err := tree.ProofFor(0)
 		require.NoError(t, err)
-		require.Len(t, proof, 2)
+		require.Len(t, proof.Hashes, 2)
 
 		require.True(t, Verify(proof, tree.levels[0][0], tree.Root()))
 	})
@@ -203,7 +203,7 @@ func TestVerify(t *testing.T) {
 
 		proof, err := tree.ProofFor(0)
 		require.NoError(t, err)
-		require.Len(t, proof, 3)
+		require.Len(t, proof.Hashes, 3)
 
 		require.True(t, Verify(proof, tree.levels[0][0], tree.Root()))
 	})

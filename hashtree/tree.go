@@ -108,10 +108,10 @@ func Verify(proof Proof, leaf, root Bytes32) bool {
 	for _, p := range proof.Hashes {
 		if leafIndex%2 == 0 {
 			// sibling is a left node, so concat that hash first then the proof node
-			hash = sha256.Sum256(common.Concat(p[:], hash[:]))
+			hash = sha256.Sum256(common.Concat(hash[:], p[:]))
 		} else {
 			// sibling is a right node, so concat proof node first then the sibling
-			hash = sha256.Sum256(common.Concat(hash[:], p[:]))
+			hash = sha256.Sum256(common.Concat(p[:], hash[:]))
 		}
 		leafIndex /= 2
 	}
