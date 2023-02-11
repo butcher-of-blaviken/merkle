@@ -20,21 +20,15 @@ func (b Bytes32) String() string {
 	return hex.EncodeToString(b[:])
 }
 
-// ProofNode is a merkle tree node with the required data needed to use
-// in a merkle proof.
-type ProofNode struct {
-	Hash  Bytes32
-	Index int
-}
-
-func (p ProofNode) String() string {
-	return fmt.Sprintf("ProofNode(hash=%x, index=%d)", p.Hash[:], p.Index)
-}
-
-// Proof represents a merkle proof, which is a sequence of hashes
-// and indexes into levels of the merkle tree, that proves that a particular
+// Proof represents a merkle proof, which is a sequence of sister hashes
+// of a leaf node from the bottom to the root, that proves that a particular
 // piece of data belongs to the tree.
-type Proof []ProofNode
+// It also contains the index of the leaf in the bottom level of the tree
+// to aid in verifying the proof.
+type Proof struct {
+	Hashes    []Bytes32
+	LeafIndex int
+}
 
 // level represents a level in the complete binary tree that
 // is the merkle tree.
@@ -78,16 +72,20 @@ func (t *Tree) String() string {
 // within the merkle tree.
 // True is returned if and only if the leaf is a member of this merkle
 // tree.
-func (t *Tree) Verify(proof Proof, leaf, root Bytes32) bool {
-	hash := leaf
-	for _, p := range proof {
-		if p.Index%2 == 0 {
+func Verify(proof Proof, leaf, root Bytes32) bool {
+	var (
+		hash      = leaf
+		leafIndex = proof.LeafIndex
+	)
+	for _, p := range proof.Hashes {
+		if leafIndex%2 == 0 {
 			// sibling is a left node, so concat that hash first then the proof node
-			hash = sha256.Sum256(common.Concat(p.Hash[:], hash[:]))
+			hash = sha256.Sum256(common.Concat(p[:], hash[:]))
 		} else {
 			// sibling is a right node, so concat proof node first then the sibling
-			hash = sha256.Sum256(common.Concat(hash[:], p.Hash[:]))
+			hash = sha256.Sum256(common.Concat(hash[:], p[:]))
 		}
+		leafIndex /= 2
 	}
 
 	return bytes.Equal(hash[:], root[:])
@@ -97,17 +95,14 @@ func (t *Tree) Verify(proof Proof, leaf, root Bytes32) bool {
 // i, or an error if that index does not exist.
 func (t *Tree) ProofFor(i int) (p Proof, err error) {
 	if i > len(t.levels[0])-1 || i < 0 {
-		return nil, errors.New("leaf node index out of bounds")
+		return Proof{}, errors.New("leaf node index out of bounds")
 	}
 
 	var (
-		siblingIndex = t.getSiblingIndex(i, 0)
+		siblingIndex = getSiblingIndex(i, 0)
 		sibling      = t.levels[0][siblingIndex]
 	)
-	p = append(p, ProofNode{
-		Hash:  sibling,
-		Index: siblingIndex,
-	})
+	p.Hashes = append(p.Hashes, sibling)
 
 	// now that we have the element and it's sibling, we walk up the levels
 	// of the tree to get the nodes that are needed to complete the proof.
@@ -117,19 +112,17 @@ func (t *Tree) ProofFor(i int) (p Proof, err error) {
 	)
 	for currLevel < len(t.levels)-1 {
 		parentIndex := currIndex / 2
-		parentSiblingIndex := t.getSiblingIndex(parentIndex, currLevel)
+		parentSiblingIndex := getSiblingIndex(parentIndex, currLevel)
 		parentSibling := t.levels[currLevel][parentSiblingIndex]
-		p = append(p, ProofNode{
-			Hash:  parentSibling,
-			Index: parentSiblingIndex,
-		})
+		p.Hashes = append(p.Hashes, parentSibling)
 		currIndex = parentSiblingIndex
 		currLevel++
 	}
+	p.LeafIndex = i
 	return p, nil
 }
 
-func (t *Tree) getSiblingIndex(i, level int) int {
+func getSiblingIndex(i, level int) int {
 	if i%2 == 0 {
 		return i + 1
 	}
