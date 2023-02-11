@@ -39,6 +39,34 @@ type Tree struct {
 	levels []level // starting from bottom, going to the top
 }
 
+// Update updates the leaf at the given index with the new data
+func (t *Tree) Update(index int, data []byte) error {
+	if index < 0 || index >= len(t.levels[0]) {
+		return errors.New("index out of range")
+	}
+
+	// update the hash of the leaf and iteratively update parents
+	dataHash := sha256.Sum256(data)
+	t.levels[0][index] = dataHash
+
+	for lev := 0; lev < len(t.levels)-1; lev++ {
+		var (
+			newParent   Bytes32
+			current     = t.levels[lev][index]
+			sibling     = t.levels[lev][getSiblingIndex(index, lev)]
+			parentIndex = index / 2
+		)
+		if index%2 == 0 {
+			newParent = sha256.Sum256(common.Concat(current[:], sibling[:]))
+		} else {
+			newParent = sha256.Sum256(common.Concat(sibling[:], current[:]))
+		}
+		t.levels[lev+1][parentIndex] = newParent
+	}
+
+	return nil
+}
+
 func (t *Tree) Height() int {
 	return len(t.levels)
 }

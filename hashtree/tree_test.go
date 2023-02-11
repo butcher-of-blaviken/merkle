@@ -208,3 +208,28 @@ func TestVerify(t *testing.T) {
 		require.True(t, Verify(proof, tree.levels[0][0], tree.Root()))
 	})
 }
+
+func TestUpdate(t *testing.T) {
+	tree, err := New([][]byte{
+		[]byte("hello"),
+		[]byte("world"),
+		[]byte("today"),
+		[]byte("yes"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, tree.Height())
+	require.Equal(t, "ce1883478771a5921ef628afbbfd222f36dda955d2b311a2a722fe314f825046", tree.Root().String())
+
+	updatedTree, err := New([][]byte{
+		[]byte("goodbye"),
+		[]byte("world"),
+		[]byte("today"),
+		[]byte("yes"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, tree.Height())
+	require.Equal(t, "b2eb175a0912b86cd1346e8c874b7e612a61cc8292f7ac8e1a519a2e1ac777e8", updatedTree.Root().String())
+
+	require.NoError(t, tree.Update(0, []byte("goodbye")))
+	require.Equal(t, updatedTree.Root().String(), tree.Root().String())
+}
