@@ -9,13 +9,13 @@ import (
 
 func TestMPT_PutGet(t *testing.T) {
 	t.Run("empty trie", func(t *testing.T) {
-		trie := NewMerklePatriciaTrie()
+		trie := New()
 		_, err := trie.Get([]byte("not-there"))
 		assert.Error(t, err)
 	})
 
 	t.Run("simple put/get", func(t *testing.T) {
-		trie := NewMerklePatriciaTrie()
+		trie := New()
 		assert.NoError(t, trie.Put([]byte("hello"), []byte("world")))
 		val, err := trie.Get([]byte("hello"))
 		assert.NoError(t, err)
@@ -23,7 +23,7 @@ func TestMPT_PutGet(t *testing.T) {
 	})
 
 	t.Run("multiple nodes in tree - leaf to extension to branch", func(t *testing.T) {
-		trie := NewMerklePatriciaTrie()
+		trie := New()
 		assert.NoError(t, trie.Put([]byte("hello"), []byte("world")))
 		assert.NoError(t, trie.Put([]byte("hello-poop"), []byte("world-also")))
 		val, err := trie.Get([]byte("hello"))
@@ -37,7 +37,7 @@ func TestMPT_PutGet(t *testing.T) {
 	})
 
 	t.Run("multiple nodes in tree, different paths", func(t *testing.T) {
-		trie := NewMerklePatriciaTrie()
+		trie := New()
 		assert.NoError(t, trie.Put([]byte("firstpath"), []byte("first")))
 		assert.NoError(t, trie.Put([]byte("secondpath"), []byte("second")))
 		assert.NoError(t, trie.Put([]byte("thirdpath"), []byte("third")))
@@ -51,7 +51,7 @@ func TestMPT_PutGet(t *testing.T) {
 	})
 
 	t.Run("more nodes, more paths, some clashing", func(t *testing.T) {
-		trie := NewMerklePatriciaTrie()
+		trie := New()
 		testCases := []struct {
 			key, expected string
 		}{

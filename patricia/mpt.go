@@ -213,7 +213,8 @@ func (m *mpt) Root() []byte {
 	panic("unimplemented")
 }
 
-func NewMerklePatriciaTrie() common.MPT {
+// New returns an empty Merkle-Patricia trie ready for use.
+func New() common.MPT {
 	return &mpt{
 		root: nil,
 	}
