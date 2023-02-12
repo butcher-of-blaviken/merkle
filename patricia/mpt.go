@@ -101,8 +101,12 @@ func (m *mpt) Put(key []byte, value []byte) error {
 				return nil
 			}
 		case nodeKindExtension:
-			extension := (*node).(*extensionNode)
-			commonPrefix := common.ExtractCommonPrefix(extension.path, nibbles)
+			var (
+				extension       = (*node).(*extensionNode)
+				commonPrefix    = common.ExtractCommonPrefix(extension.path, nibbles)
+				commonPrefixLen = len(commonPrefix)
+			)
+
 			// only two cases we care about here:
 			// 1. common prefix length is less than the extension path length.
 			//   a. in this case we reduce the path size of this extension node and add
@@ -110,11 +114,11 @@ func (m *mpt) Put(key []byte, value []byte) error {
 			// 2. common prefix length is greater than or equal to extension path length.
 			//   a. in this case we can trim off the matching nibbles and continue down
 			//      the trie.
-			if len(commonPrefix) < len(extension.path) {
+			if commonPrefixLen < len(extension.path) {
 				// case 1.
-				newExtPath := extension.path[:len(commonPrefix)]
-				branchNibble := extension.path[len(commonPrefix)]
-				remainingPath := extension.path[len(commonPrefix)+1:]
+				newExtPath := extension.path[:commonPrefixLen]
+				branchNibble := extension.path[commonPrefixLen]
+				remainingPath := extension.path[commonPrefixLen+1:]
 				branch := &branchNode{}
 				if len(remainingPath) == 0 {
 					branch.children[branchNibble] = extension.next
@@ -125,13 +129,13 @@ func (m *mpt) Put(key []byte, value []byte) error {
 					}
 				}
 
-				if len(commonPrefix) < len(nibbles) {
-					branchNibble, remaining := nibbles[len(commonPrefix)], nibbles[len(commonPrefix)+1:]
+				if commonPrefixLen < len(nibbles) {
+					branchNibble, remaining := nibbles[commonPrefixLen], nibbles[commonPrefixLen+1:]
 					branch.children[branchNibble] = &leafNode{
 						path:  remaining,
 						value: value,
 					}
-				} else if len(commonPrefix) == len(nibbles) {
+				} else if commonPrefixLen == len(nibbles) {
 					branch.value = value
 				} else {
 					panic("invariant violated: len(commonPrefix) > len(nibbles)") // should be impossible
@@ -149,16 +153,19 @@ func (m *mpt) Put(key []byte, value []byte) error {
 			}
 
 			// case 2.
-			nibbles = nibbles[len(commonPrefix):]
+			nibbles = nibbles[commonPrefixLen:]
 			node = &extension.next
 			continue
 		case nodeKindLeaf:
-			leaf := (*node).(*leafNode)
-			commonPrefix := common.ExtractCommonPrefix(leaf.path, nibbles)
+			var (
+				leaf            = (*node).(*leafNode)
+				commonPrefix    = common.ExtractCommonPrefix(leaf.path, nibbles)
+				commonPrefixLen = len(commonPrefix)
+			)
 
 			// if the common prefix matches both the remaining nibbles and
 			// the leaf path, then we can update the leaf value in-place.
-			if len(commonPrefix) == len(nibbles) && len(commonPrefix) == len(leaf.path) {
+			if commonPrefixLen == len(nibbles) && commonPrefixLen == len(leaf.path) {
 				leaf.value = value
 				return nil
 			}
@@ -166,15 +173,15 @@ func (m *mpt) Put(key []byte, value []byte) error {
 			branch := &branchNode{}
 			// only one of the cases below will be true, since the third possibility is
 			// checked above.
-			if len(commonPrefix) == len(leaf.path) {
+			if commonPrefixLen == len(leaf.path) {
 				branch.value = leaf.value
 			}
 
-			if len(commonPrefix) == len(nibbles) {
+			if commonPrefixLen == len(nibbles) {
 				branch.value = value
 			}
 
-			if len(commonPrefix) > 0 {
+			if commonPrefixLen > 0 {
 				// create an extension node that will store the common prefix
 				// between the leaf and the remaining nibbles
 				extension := &extensionNode{
@@ -188,16 +195,16 @@ func (m *mpt) Put(key []byte, value []byte) error {
 				*node = branch
 			}
 
-			if len(commonPrefix) < len(leaf.path) {
-				branch.children[leaf.path[len(commonPrefix)]] = &leafNode{
-					path:  leaf.path[len(commonPrefix)+1:],
+			if commonPrefixLen < len(leaf.path) {
+				branch.children[leaf.path[commonPrefixLen]] = &leafNode{
+					path:  leaf.path[commonPrefixLen+1:],
 					value: leaf.value,
 				}
 			}
 
-			if len(commonPrefix) < len(nibbles) {
-				branch.children[nibbles[len(commonPrefix)]] = &leafNode{
-					path:  nibbles[len(commonPrefix)+1:],
+			if commonPrefixLen < len(nibbles) {
+				branch.children[nibbles[commonPrefixLen]] = &leafNode{
+					path:  nibbles[commonPrefixLen+1:],
 					value: value,
 				}
 			}
