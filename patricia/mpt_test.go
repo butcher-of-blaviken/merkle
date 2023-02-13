@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -77,5 +78,28 @@ func TestMPT_PutGet(t *testing.T) {
 				assert.Equal(t, []byte(tc.expected), v, fmt.Sprintf("key: %s, expected: %s", tc.key, tc.expected))
 			})
 		}
+	})
+}
+
+func TestMPT_Root(t *testing.T) {
+	t.Run("empty trie", func(t *testing.T) {
+		trie := New()
+		actual := trie.Root()
+		assert.Equal(t, "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421", hexutil.Encode(actual))
+	})
+
+	t.Run("some elements", func(t *testing.T) {
+		trie := New()
+		trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+		actual := trie.Root()
+		assert.Equal(t, "0x6764f7ad0efcbc11b84fe7567773aa4b12bd6b4d35c05bbc3951b58dedb6c8e8", hexutil.Encode(actual))
+
+		trie.Put([]byte{1, 2}, []byte("world"))
+		actual = trie.Root()
+		assert.Equal(t, "0xd0efbf92d7ff7c9cc38807248d85407e1b68d3e934d879ca4aa02308ca4bd824", hexutil.Encode(actual))
+
+		trie.Put([]byte{1, 2}, []byte("trie"))
+		actual = trie.Root()
+		assert.Equal(t, "0x50dc8dca4b79c361cbef2678fa230de5e40e7d00201af9e71881cf2fbdb82487", hexutil.Encode(actual))
 	})
 }

@@ -11,11 +11,11 @@ import (
 
 func TestCompactEncode(t *testing.T) {
 	path := []byte{1, 2, 3, 4, 5}
-	encoded := common.CompactEncode(path)
-	assert.Equal(t, "010102030405", hex.EncodeToString(encoded))
+	encoded := common.CompactEncode(path, false)
+	assert.Equal(t, "112345", hex.EncodeToString(encoded))
 	path = []byte{0, 1, 2, 3, 4, 5}
-	encoded = common.CompactEncode(path)
-	assert.Equal(t, "0000000102030405", hex.EncodeToString(encoded))
+	encoded = common.CompactEncode(path, false)
+	assert.Equal(t, "00012345", hex.EncodeToString(encoded))
 }
 
 func TestExtractCommonPrefix(t *testing.T) {

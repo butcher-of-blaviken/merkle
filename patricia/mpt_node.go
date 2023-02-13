@@ -1,17 +1,16 @@
 package patricia
 
-type nodeKind int
+import (
+	"fmt"
 
-const (
-	nodeKindInvalid = iota
-	nodeKindBranch
-	nodeKindLeaf
-	nodeKindExtension
+	"github.com/butcher-of-blaviken/merkle/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // mptNode is an interface that is implemented by all MPT node types.
 type mptNode interface {
-	kind() nodeKind
+	preRLP() []any
 }
 
 // MPT have four kinds of nodes.
@@ -36,9 +35,13 @@ type leafNode struct {
 	value []byte
 }
 
-// kind implements mptNode
-func (*leafNode) kind() nodeKind {
-	return nodeKindLeaf
+// preRLP implements mptNode
+func (l *leafNode) preRLP() []any {
+	ce := common.CompactEncode(l.path, true)
+	return []any{
+		ce,
+		l.value,
+	}
 }
 
 // extensionNode is an optimization in mpt's which allows us to "shortcut"
@@ -50,9 +53,18 @@ type extensionNode struct {
 	next mptNode
 }
 
-// kind implements mptNode
-func (*extensionNode) kind() nodeKind {
-	return nodeKindExtension
+// preRLP implements mptNode
+func (e *extensionNode) preRLP() []any {
+	ce := common.CompactEncode(e.path, false)
+	r := []any{
+		ce,
+	}
+	if nextRLP := serialize(e.next); len(nextRLP) >= 32 {
+		r = append(r, crypto.Keccak256(nextRLP))
+	} else {
+		r = append(r, e.next.preRLP())
+	}
+	return r
 }
 
 type branchNode struct {
@@ -60,7 +72,43 @@ type branchNode struct {
 	value    []byte
 }
 
-// kind implements mptNode
-func (*branchNode) kind() nodeKind {
-	return nodeKindBranch
+// preRLP implements mptNode
+func (b *branchNode) preRLP() (r []any) {
+	for _, c := range b.children {
+		if c == nil {
+			r = append(r, []byte{})
+		} else {
+			if cRLP := serialize(c); len(cRLP) >= 32 {
+				r = append(r, crypto.Keccak256(cRLP))
+			} else {
+				r = append(r, c.preRLP())
+			}
+		}
+	}
+	r = append(r, b.value)
+	if len(r) != 17 {
+		panic(fmt.Sprintf("invariant violated: branch preRLP must be length 17, got %d", len(r)))
+	}
+	return
+}
+
+func hash(node mptNode) []byte {
+	return crypto.Keccak256(serialize(node))
+}
+
+func serialize(node mptNode) []byte {
+	var preRLP any
+
+	if node == nil {
+		preRLP = []byte{}
+	} else {
+		preRLP = node.preRLP()
+	}
+
+	rlpEncoded, err := rlp.EncodeToBytes(preRLP)
+	if err != nil {
+		panic(err) // should never happen
+	}
+
+	return rlpEncoded
 }
