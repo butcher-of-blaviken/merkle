@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/butcher-of-blaviken/merkle/common"
+	gethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -212,6 +213,21 @@ func (m *mpt) Root() []byte {
 		return crypto.Keccak256(rlp.EmptyString)
 	}
 	return hash(m.root)
+}
+
+// Reset implements types.TrieHasher
+func (m *mpt) Reset() {
+	m.root = nil
+}
+
+// Update implements types.TrieHasher
+func (m *mpt) Update(key, value []byte) {
+	m.Put(key, value)
+}
+
+// Hash implements types.TrieHasher
+func (m *mpt) Hash() gethCommon.Hash {
+	return gethCommon.BytesToHash(m.Root())
 }
 
 // New returns an empty Merkle-Patricia trie ready for use.

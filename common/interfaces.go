@@ -1,6 +1,10 @@
 package common
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/core/types"
+)
 
 var (
 	ErrKeyNotFound = fmt.Errorf("key not found")
@@ -24,6 +28,7 @@ type Trie interface {
 // merkle proofs of membership.
 type MPT interface {
 	Trie
+	types.TrieHasher
 	// Root returns the merkle root (i.e hash) of the entire MPT.
 	Root() []byte
 }

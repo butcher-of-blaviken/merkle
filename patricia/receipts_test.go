@@ -7,15 +7,13 @@ import (
 	"testing"
 
 	"github.com/butcher-of-blaviken/merkle/patricia"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 	gethTrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/require"
 )
 
-func receiptsFromJSON(t *testing.T, receiptsJSONPath string) (r []*types.Receipt) {
+func receiptsFromJSON(t *testing.T, receiptsJSONPath string) (r types.Receipts) {
 	f, err := os.Open(receiptsJSONPath)
 	require.NoError(t, err)
 	defer f.Close()
@@ -26,28 +24,14 @@ func receiptsFromJSON(t *testing.T, receiptsJSONPath string) (r []*types.Receipt
 }
 
 func TestReceiptsRootEIP1559(t *testing.T) {
-	// TODO: fix
-	t.Skip()
-
 	header := headerFromJSON(t, "testdata/16614538/header.json")
 	receipts := receiptsFromJSON(t, "testdata/16614538/receipts.json")
 	mpt := patricia.New()
 	gtrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
-	for i, receipt := range receipts {
-		// encode into RLP
-		indexRLP, err := rlp.EncodeToBytes(uint64(i))
-		require.NoError(t, err)
-		receiptRLP, err := rlp.EncodeToBytes(receipt)
-		require.NoError(t, err)
-
-		// insert into tries
-		require.NoError(t, mpt.Put(indexRLP, receiptRLP))
-		gtrie.Update(indexRLP, receiptRLP)
-	}
-
-	txRoot := mpt.Root()
-	gethRoot := gtrie.Hash()
-	require.Equal(t, gethRoot.Hex(), hexutil.Encode(txRoot), "my root doesn't match geth root")
-	require.Equal(t, header.TxHash.Hex(), gethRoot.Hex())
-	require.Equal(t, header.TxHash.Hex(), hexutil.Encode(txRoot))
+	// Using DeriveSha is quite convenient, from the geth API.
+	receiptsRoot := types.DeriveSha(receipts, mpt)
+	gethRoot := types.DeriveSha(receipts, gtrie)
+	require.Equal(t, gethRoot, receiptsRoot, "my root doesn't match geth root")
+	require.Equal(t, header.ReceiptHash, gethRoot)
+	require.Equal(t, header.ReceiptHash, receiptsRoot)
 }

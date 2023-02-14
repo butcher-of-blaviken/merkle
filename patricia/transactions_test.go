@@ -26,7 +26,7 @@ func headerFromJSON(t *testing.T, headerJSONPath string) (h *types.Header) {
 	return
 }
 
-func transactionsFromJSON(t *testing.T, txsJSONPath string) (r []*types.Transaction) {
+func transactionsFromJSON(t *testing.T, txsJSONPath string) (r types.Transactions) {
 	f, err := os.Open(txsJSONPath)
 	require.NoError(t, err)
 	defer f.Close()
@@ -57,28 +57,17 @@ func TestUnmarshalTransactions(t *testing.T) {
 }
 
 func TestTransactionRootEIP1559(t *testing.T) {
-	t.Skip("not working - need to fix")
-
 	header := headerFromJSON(t, "testdata/16614538/header.json")
 	txs := transactionsFromJSON(t, "testdata/16614538/txs.json")
 	mpt := patricia.New()
 	gtrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
-	for i, tx := range txs {
-		// encode into RLP
-		indexRLP, err := rlp.EncodeToBytes(uint64(i))
-		require.NoError(t, err)
-		txRLP, err := rlp.EncodeToBytes(tx)
-		require.NoError(t, err)
 
-		// insert into tries
-		require.NoError(t, mpt.Put(indexRLP, txRLP))
-		gtrie.Update(indexRLP, txRLP)
-	}
-	txRoot := mpt.Root()
-	gethRoot := gtrie.Hash()
-	require.Equal(t, gethRoot.Hex(), hexutil.Encode(txRoot), "my root doesn't match geth root")
-	require.Equal(t, header.TxHash.Hex(), gethRoot.Hex())
-	require.Equal(t, header.TxHash.Hex(), hexutil.Encode(txRoot))
+	// Using DeriveSha is quite convenient, from the geth API.
+	txRoot := types.DeriveSha(txs, mpt)
+	gethRoot := types.DeriveSha(txs, gtrie)
+	require.Equal(t, gethRoot, txRoot, "my root doesn't match geth root")
+	require.Equal(t, header.TxHash, gethRoot)
+	require.Equal(t, header.TxHash, txRoot)
 }
 
 func TestTransactionsRootLegacy(t *testing.T) {
@@ -92,7 +81,6 @@ func TestTransactionsRootLegacy(t *testing.T) {
 		require.NoError(t, err)
 		txRLP, err := rlp.EncodeToBytes(tx)
 		require.NoError(t, err)
-		// t.Log("RLP encoded tx", tx.Hash, "is:", hexutil.Encode(txRLP))
 
 		// insert into tries
 		require.NoError(t, mpt.Put(indexRLP, txRLP))
