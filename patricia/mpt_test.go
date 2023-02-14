@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	gethTrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,5 +103,27 @@ func TestMPT_Root(t *testing.T) {
 		trie.Put([]byte{1, 2}, []byte("trie"))
 		actual = trie.Root()
 		assert.Equal(t, "0x50dc8dca4b79c361cbef2678fa230de5e40e7d00201af9e71881cf2fbdb82487", hexutil.Encode(actual))
+	})
+
+	t.Run("geth cross test", func(t *testing.T) {
+		trie := New()
+		kvs := []struct {
+			key, value []byte
+		}{
+			{[]byte{1, 2, 3, 4}, []byte("hello")},
+			{[]byte{1, 2, 5, 4}, []byte("world")},
+			{[]byte{1, 2, 6, 4}, []byte("haha")},
+			{[]byte{1, 7, 3, 4}, []byte("yessir")},
+			{[]byte{9, 2, 3, 4}, []byte("tweet it")},
+		}
+		gTrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
+		for _, kv := range kvs {
+			assert.NoError(t, trie.Put(kv.key, kv.value))
+			gTrie.Update(kv.key, kv.value)
+
+			myRoot := trie.Root()
+			gethRoot := gTrie.Hash()
+			assert.Equal(t, gethRoot.Hex(), hexutil.Encode(myRoot))
+		}
 	})
 }

@@ -1,0 +1,47 @@
+{
+    "blockHash": "0xc0672e6f3f37568be45aa0621cfd852e164849ef07619b11103fcd8d2d8dbb77",
+    "blockNumber": "0xfd848a",
+    "from": "0x00000027f490acee7f11ab5fdd47209d6422c5a7",
+    "gas": "0x2a0de",
+    "gasPrice": "0x396b63be9",
+    "maxPriorityFeePerGas": "0x0",
+    "maxFeePerGas": "0x396b63be9",
+    "hash": "0xe289a88c8a6a148cda9a9de37a53a2f0ffed8753f1648d39074957b4f2cd929e",
+    "input": "0x801730d4967259333e44409031192a04fc02f6afe06e02ade282",
+    "nonce": "0x5b2c",
+    "to": "0xa7003527af20001c000037a90051b19ce31eed36",
+    "transactionIndex": "0x2",
+    "value": "0x3f2869e",
+    "type": "0x2",
+    "accessList": [
+        {
+            "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+            "storageKeys": [
+                "0x6a61c2728fb03a4143d86f53c1fbbf869dd88038bd94ca8e8bd9f7c6d31d0855",
+                "0x317af0bd8b7ff6a16d23845b2c823597ad32957127383d4917be3e2bcfba79d7"
+            ]
+        },
+        {
+            "address": "0x30d4967259333e44409031192a04fc02f6afe06e",
+            "storageKeys": [
+                "0x000000000000000000000000000000000000000000000000000000000000000c",
+                "0x0000000000000000000000000000000000000000000000000000000000000008",
+                "0x0000000000000000000000000000000000000000000000000000000000000006",
+                "0x0000000000000000000000000000000000000000000000000000000000000007",
+                "0x0000000000000000000000000000000000000000000000000000000000000009",
+                "0x000000000000000000000000000000000000000000000000000000000000000a"
+            ]
+        },
+        {
+            "address": "0x9f60285661ecfb8bb1b04c8b94d93989f93dc457",
+            "storageKeys": [
+                "0x271fd59f791995be476c30fab5bfd4559efabe1a77573d057bed3608e6f0eee4",
+                "0xc3c7a1b034031c9f26862f19d109b42d0d0fb2db36834ec85a85d84addb76784"
+            ]
+        }
+    ],
+    "chainId": "0x1",
+    "v": "0x1",
+    "r": "0xbf10d2c7030dc2c6f44b53817bb5809ccd2159e6ddf17c1b04a16495bf7b7ce7",
+    "s": "0x66f1b2caf8d582b6d803204d14eb1fdd371ade83ff05c44d7bbdaa2a9537bd67"
+}
