@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 var (
@@ -31,4 +32,5 @@ type MPT interface {
 	types.TrieHasher
 	// Root returns the merkle root (i.e hash) of the entire MPT.
 	Root() []byte
+	ProofFor(key []byte) (proofDB ethdb.KeyValueReader)
 }

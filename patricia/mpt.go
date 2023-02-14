@@ -5,7 +5,9 @@ import (
 
 	"github.com/butcher-of-blaviken/merkle/common"
 	gethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -228,6 +230,64 @@ func (m *mpt) Update(key, value []byte) {
 // Hash implements types.TrieHasher
 func (m *mpt) Hash() gethCommon.Hash {
 	return gethCommon.BytesToHash(m.Root())
+}
+
+// ProofFor constructs a merkle proof for the provided key.
+// The result contains all encoded nodes on the path to the
+// value at key. The value itself is also included in the last node.
+func (m *mpt) ProofFor(key []byte) ethdb.KeyValueReader {
+	var (
+		proofDB = rawdb.NewMemoryDatabase()
+		nibbles = common.BytesToNibbles(key)
+		node    = m.root
+	)
+	for {
+		proofDB.Put(hash(node), serialize(node))
+
+		if node == nil {
+			return proofDB
+		}
+
+		switch n := node.(type) {
+		case *leafNode:
+			// if the remaining nibbles match the path in the leaf then we've found
+			// the value.
+			if bytes.Equal(nibbles, n.path) {
+				return proofDB
+			}
+			// key not found
+			return nil
+		case *extensionNode:
+			// extract the common prefix from the nibbles that
+			// remain and the extension path.
+			commonPrefix := common.ExtractCommonPrefix(n.path, nibbles)
+			if len(commonPrefix) < len(n.path) {
+				// key not found
+				return nil
+			}
+			// "skip" through all the common nibbles and jump to the next node.
+			// this is where the optimization kicks in.
+			nibbles = nibbles[len(commonPrefix):]
+			node = n.next
+		case *branchNode:
+			// check if we have a path for the first nibble
+			// and recursively continue
+			if len(nibbles) > 0 {
+				// the case where node is set to nil is handled above,
+				// no need to handle it here again.
+				node = n.children[nibbles[0]] // jump one level down
+				nibbles = nibbles[1:]         // nibble off first nibble
+				continue
+			}
+
+			if n.value != nil {
+				return proofDB
+			}
+			return nil // key not found
+		default:
+			panic("unexpected node kind - bug?")
+		}
+	}
 }
 
 // New returns an empty Merkle-Patricia trie ready for use.

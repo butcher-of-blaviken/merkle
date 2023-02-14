@@ -1,24 +1,28 @@
-package patricia
+package patricia_test
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
+	"github.com/butcher-of-blaviken/merkle/patricia"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/rlp"
 	gethTrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMPT_PutGet(t *testing.T) {
 	t.Run("empty trie", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		_, err := trie.Get([]byte("not-there"))
 		assert.Error(t, err)
 	})
 
 	t.Run("simple put/get", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		assert.NoError(t, trie.Put([]byte("hello"), []byte("world")))
 		val, err := trie.Get([]byte("hello"))
 		assert.NoError(t, err)
@@ -26,7 +30,7 @@ func TestMPT_PutGet(t *testing.T) {
 	})
 
 	t.Run("multiple nodes in tree - leaf to extension to branch", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		assert.NoError(t, trie.Put([]byte("hello"), []byte("world")))
 		assert.NoError(t, trie.Put([]byte("hello-poop"), []byte("world-also")))
 		val, err := trie.Get([]byte("hello"))
@@ -40,7 +44,7 @@ func TestMPT_PutGet(t *testing.T) {
 	})
 
 	t.Run("multiple nodes in tree, different paths", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		assert.NoError(t, trie.Put([]byte("firstpath"), []byte("first")))
 		assert.NoError(t, trie.Put([]byte("secondpath"), []byte("second")))
 		assert.NoError(t, trie.Put([]byte("thirdpath"), []byte("third")))
@@ -54,7 +58,7 @@ func TestMPT_PutGet(t *testing.T) {
 	})
 
 	t.Run("more nodes, more paths, some clashing", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		testCases := []struct {
 			key, expected string
 		}{
@@ -85,13 +89,13 @@ func TestMPT_PutGet(t *testing.T) {
 
 func TestMPT_Root(t *testing.T) {
 	t.Run("empty trie", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		actual := trie.Root()
 		assert.Equal(t, "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421", hexutil.Encode(actual))
 	})
 
 	t.Run("some elements", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
 		actual := trie.Root()
 		assert.Equal(t, "0x6764f7ad0efcbc11b84fe7567773aa4b12bd6b4d35c05bbc3951b58dedb6c8e8", hexutil.Encode(actual))
@@ -106,7 +110,7 @@ func TestMPT_Root(t *testing.T) {
 	})
 
 	t.Run("geth cross test", func(t *testing.T) {
-		trie := New()
+		trie := patricia.New()
 		kvs := []struct {
 			key, value []byte
 		}{
@@ -125,5 +129,53 @@ func TestMPT_Root(t *testing.T) {
 			gethRoot := gTrie.Hash()
 			assert.Equal(t, gethRoot.Hex(), hexutil.Encode(myRoot))
 		}
+	})
+}
+
+func TestMPT_ProofFor(t *testing.T) {
+	t.Run("simple trie", func(t *testing.T) {
+		trie := patricia.New()
+		kvs := []struct {
+			key, value []byte
+		}{
+			{[]byte{1, 2, 3, 4}, []byte("hello")},
+			{[]byte{1, 2, 5, 4}, []byte("world")},
+			{[]byte{1, 2, 6, 4}, []byte("haha")},
+			{[]byte{1, 7, 3, 4}, []byte("yessir")},
+			{[]byte{9, 2, 3, 4}, []byte("tweet it")},
+		}
+		gTrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
+		for _, kv := range kvs {
+			assert.NoError(t, trie.Put(kv.key, kv.value))
+			gTrie.Update(kv.key, kv.value)
+		}
+
+		proof := trie.ProofFor([]byte{1, 2, 3, 4})
+		_, err := gethTrie.VerifyProof(trie.Hash(), []byte{1, 2, 3, 4}, proof)
+		assert.NoError(t, err)
+	})
+
+	t.Run("transactions trie", func(t *testing.T) {
+		txs := transactionsFromJSON(t, "testdata/16614538/txs.json")
+		mpt := patricia.New()
+		gtrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
+		for i, tx := range txs {
+			key, err := rlp.EncodeToBytes(uint64(i))
+			require.NoError(t, err)
+
+			var val bytes.Buffer
+			require.NoError(t, tx.EncodeRLP(&val))
+
+			mpt.Put(key, val.Bytes())
+			gtrie.Update(key, val.Bytes())
+		}
+
+		require.Equal(t, gtrie.Hash(), mpt.Hash())
+
+		proofKey, err := rlp.EncodeToBytes(uint64(2))
+		require.NoError(t, err)
+		proof := mpt.ProofFor(proofKey)
+		_, err = gethTrie.VerifyProof(mpt.Hash(), proofKey, proof)
+		require.NoError(t, err)
 	})
 }
