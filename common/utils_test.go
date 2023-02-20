@@ -55,3 +55,10 @@ func TestBytesToNibbles(t *testing.T) {
 		common.BytesToNibbles([]byte("thirdpath")),
 	)
 }
+
+func TestHasPrefix(t *testing.T) {
+	assert.True(t, common.HasPrefix([]byte{1, 2, 3, 4, 5}, []byte{1, 2, 3}))
+	assert.True(t, common.HasPrefix([]byte("hello world!"), []byte("hello")))
+	assert.False(t, common.HasPrefix([]byte("dont match"), []byte("i dont match")))
+	assert.False(t, common.HasPrefix([]byte("hello"), []byte("hello world too long")))
+}

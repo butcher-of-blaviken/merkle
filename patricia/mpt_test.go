@@ -150,9 +150,14 @@ func TestMPT_ProofFor(t *testing.T) {
 			gTrie.Update(kv.key, kv.value)
 		}
 
+		rootHash := trie.Hash()
+		gHash := gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+
 		proof := trie.ProofFor([]byte{1, 2, 3, 4})
-		_, err := gethTrie.VerifyProof(trie.Hash(), []byte{1, 2, 3, 4}, proof)
+		val, err := gethTrie.VerifyProof(trie.Hash(), []byte{1, 2, 3, 4}, proof)
 		assert.NoError(t, err)
+		assert.NotEmpty(t, val)
 	})
 
 	t.Run("transactions trie", func(t *testing.T) {
@@ -170,12 +175,15 @@ func TestMPT_ProofFor(t *testing.T) {
 			gtrie.Update(key, val.Bytes())
 		}
 
+		// NOTE: this hash is actually incorrect unfortunately.
+		// But the proving logic is unaffected.
 		require.Equal(t, gtrie.Hash(), mpt.Hash())
 
 		proofKey, err := rlp.EncodeToBytes(uint64(2))
 		require.NoError(t, err)
 		proof := mpt.ProofFor(proofKey)
-		_, err = gethTrie.VerifyProof(mpt.Hash(), proofKey, proof)
+		val, err := gethTrie.VerifyProof(mpt.Hash(), proofKey, proof)
 		require.NoError(t, err)
+		require.NotEmpty(t, val)
 	})
 }

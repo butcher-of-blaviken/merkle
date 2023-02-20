@@ -31,6 +31,18 @@ func ExtractCommonPrefix(a, b []byte) (r []byte) {
 	return
 }
 
+func HasPrefix(seq, prefix []byte) bool {
+	i := 0
+	for _, e := range seq {
+		if i < len(prefix) && e == prefix[i] {
+			i++
+		} else {
+			break
+		}
+	}
+	return i == len(prefix)
+}
+
 // CompactEncode prepends the appropriate flags to the provided path.
 // See the table below for details.
 // It returns the path in bytes instead of nibbles.
