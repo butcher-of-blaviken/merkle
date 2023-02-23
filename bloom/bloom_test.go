@@ -8,7 +8,16 @@ import (
 )
 
 func TestBloomInsert(t *testing.T) {
-	b := bloom.New(1000, 0.1)
+	b := bloom.New(1000, 0.1, bloom.HasherTypeKeccak256)
+
+	require.NoError(t, b.Insert([]byte("hello")))
+	require.NoError(t, b.Insert([]byte("world")))
+	require.True(t, b.Contains([]byte("hello")))
+	require.True(t, b.Contains([]byte("world")))
+}
+
+func TestBloomInsertMurmur32(t *testing.T) {
+	b := bloom.New(1000, 0.1, bloom.HasherTypeKeccak256)
 
 	require.NoError(t, b.Insert([]byte("hello")))
 	require.NoError(t, b.Insert([]byte("world")))
@@ -26,7 +35,7 @@ func FuzzBloom(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	b := bloom.New(1000, 0.01)
+	b := bloom.New(1000, 0.01, bloom.HasherTypeKeccak256)
 	f.Fuzz(func(t *testing.T, item []byte) {
 		require.NoError(t, b.Insert(item))
 		require.True(t, b.Contains(item))

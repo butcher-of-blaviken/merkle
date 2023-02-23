@@ -1,17 +1,13 @@
 package bloom
 
 import (
-	"crypto/rand"
 	"math"
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
-	// FalsePositiveRate is the recommended false positive rate
-	// of the bloom filter of 1%.
-	FalsePositiveRate float64 = 0.01
+	// RecommendedFalsePositiveRate is the recommended false positive rate
+	// to use with bloom filters - 1%.
+	RecommendedFalsePositiveRate float64 = 0.01
 )
 
 type Filter interface {
@@ -23,44 +19,6 @@ type Filter interface {
 	Contains(item []byte) bool
 }
 
-// hasherKeySize is the hasher's key size in bytes.
-const hasherKeySize = 8
-
-// hasher represents a keyed hash function.
-type hasher struct {
-	// the actual hash function, e.g kecca256 or sha256
-	hash func(input []byte) []byte
-	// a random byte prefix applied to each input
-	key []byte
-}
-
-type hashers []*hasher
-
-// hash hashes the given input with the hashers and returns indices into
-// the bloom filter for which those bits will be set.
-func (h hashers) hash(input []byte, filterSize int) (indices []int) {
-	for _, hshr := range h {
-		h := new(big.Int).SetBytes(hshr.hash(input))
-		index := h.Mod(h, big.NewInt(int64(filterSize)))
-		indices = append(indices, int(index.Int64())) // should be a safe downcast
-	}
-	return
-}
-
-func newHasher() *hasher {
-	b := make([]byte, hasherKeySize)
-	_, err := rand.Read(b)
-	if err != nil {
-		panic(err)
-	}
-	return &hasher{
-		hash: func(input []byte) []byte {
-			return crypto.Keccak256(append(b, input...))
-		},
-		key: b,
-	}
-}
-
 func bloomParams(expectedSize int, falsePositiveRate float64) (filterSize int, numHashes int) {
 	m := math.Ceil(
 		(float64(-expectedSize) * math.Log2(falsePositiveRate)) / math.Pow(math.Log2(2), 2.0),
@@ -69,20 +27,13 @@ func bloomParams(expectedSize int, falsePositiveRate float64) (filterSize int, n
 	return int(m), numHashes
 }
 
-func makeHashers(numHashes int) (hs hashers) {
-	for i := 0; i < numHashes; i++ {
-		hs = append(hs, newHasher())
-	}
-	return
-}
-
 // New creates a new bloom filter, given the expected size of the set
 // backed by the filter, and a false positive rate interpreted as a
 // percentage out of 100 (i.e 1 = 1%).
-func New(expectedSize int, falsePositiveRate float64) Filter {
+func New(expectedSize int, falsePositiveRate float64, tp HasherType) Filter {
 	filterSizeBits, numHashes := bloomParams(expectedSize, falsePositiveRate)
 	return &filter{
-		hs:     makeHashers(numHashes),
+		hs:     makeHashers(numHashes, tp),
 		filter: make([]byte, filterSizeBits/8),
 	}
 }
