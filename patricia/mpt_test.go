@@ -8,6 +8,7 @@ import (
 	"github.com/butcher-of-blaviken/merkle/patricia"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	gethTrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/assert"
@@ -185,5 +186,142 @@ func TestMPT_ProofFor(t *testing.T) {
 		val, err := gethTrie.VerifyProof(mpt.Hash(), proofKey, proof)
 		require.NoError(t, err)
 		require.NotEmpty(t, val)
+	})
+}
+
+func TestMPT_Delete(t *testing.T) {
+	t.Run("empty trie", func(t *testing.T) {
+		trie := patricia.New()
+		assert.NoError(t, trie.Delete([]byte{1, 2, 3, 4}))
+	})
+
+	t.Run("simple trie", func(t *testing.T) {
+		trie := patricia.New()
+		kvs := []struct {
+			key, value []byte
+		}{
+			{[]byte{1, 2, 3, 4}, []byte("hello")},
+			{[]byte{1, 2, 5, 4}, []byte("world")},
+			{[]byte{1, 2, 6, 4}, []byte("haha")},
+			{[]byte{1, 7, 3, 4}, []byte("yessir")},
+			{[]byte{9, 2, 3, 4}, []byte("tweet it")},
+		}
+		gTrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
+		for _, kv := range kvs {
+			trie.Put(kv.key, kv.value)
+			gTrie.Update(kv.key, kv.value)
+		}
+
+		rootHash := trie.Hash()
+		gHash := gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+
+		gTrie.Delete([]byte{1, 2, 3, 4})
+		assert.NoError(t, trie.Delete([]byte{1, 2, 3, 4}))
+		_, err := trie.Get([]byte{1, 2, 3, 4})
+		assert.Error(t, err)
+
+		rootHash = trie.Hash()
+		gHash = gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+	})
+
+	t.Run("longer keys, mostly leaves", func(t *testing.T) {
+		trie := patricia.New()
+		kvs := []struct {
+			key, value []byte
+		}{
+			{crypto.Keccak256([]byte{1, 2, 3, 4}), []byte("hello")},
+			{crypto.Keccak256([]byte{1, 2, 5, 4}), []byte("world")},
+			{crypto.Keccak256([]byte{1, 2, 6, 4}), []byte("haha")},
+			{crypto.Keccak256([]byte{1, 7, 3, 4}), []byte("yessir")},
+			{crypto.Keccak256([]byte{29, 2, 3, 4}), []byte("tweet it")},
+			{crypto.Keccak256([]byte{39, 2, 3, 4}), []byte("mastodon it")},
+			{crypto.Keccak256([]byte{49, 2, 31, 4}), []byte("ether it")},
+			{crypto.Keccak256([]byte{19, 21, 3, 4}), []byte("bitcoin it")},
+			{crypto.Keccak256([]byte{93, 2, 32, 4}), []byte("just do it")},
+		}
+		gTrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
+		for _, kv := range kvs {
+			trie.Put(kv.key, kv.value)
+			gTrie.Update(kv.key, kv.value)
+		}
+
+		rootHash := trie.Hash()
+		gHash := gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+
+		gTrie.Delete(crypto.Keccak256([]byte{1, 2, 3, 4}))
+		assert.NoError(t, trie.Delete(crypto.Keccak256([]byte{1, 2, 3, 4})))
+		_, err := trie.Get(crypto.Keccak256([]byte{1, 2, 3, 4}))
+		assert.Error(t, err)
+
+		rootHash = trie.Hash()
+		gHash = gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+	})
+
+	t.Run("longer keys, extension nodes", func(t *testing.T) {
+		trie := patricia.New()
+		kvs := []struct {
+			key, value []byte
+		}{
+			{[]byte{0, 2, 2, 3, 4, 5, 22, 7, 19}, []byte("hello")},
+			{[]byte{0, 2, 2, 3, 4, 5, 25, 17, 19}, []byte("world")},
+			{[]byte{0, 2, 2, 3, 4, 5, 30, 17, 19}, []byte("haha")},
+			{[]byte{0, 2, 2, 3, 4, 5, 122, 87, 19}, []byte("yessir")},
+			{[]byte{0, 2, 2, 3, 4, 5, 222, 97, 19}, []byte("tweet it")},
+		}
+
+		gTrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
+		for _, kv := range kvs {
+			trie.Put(kv.key, kv.value)
+			gTrie.Update(kv.key, kv.value)
+		}
+
+		rootHash := trie.Hash()
+		gHash := gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+
+		gTrie.Delete([]byte{30, 2, 3, 4, 5, 30, 17, 19})
+		assert.NoError(t, trie.Delete([]byte{30, 2, 3, 4, 5, 30, 17, 19}))
+		_, err := trie.Get([]byte{30, 2, 3, 4, 5, 30, 17, 19})
+		assert.Error(t, err)
+
+		rootHash = trie.Hash()
+		gHash = gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+	})
+
+	t.Run("longer keys, branch and leaf nodes, collapsing branch", func(t *testing.T) {
+		trie := patricia.New()
+		kvs := []struct {
+			key, value []byte
+		}{
+			{[]byte{10, 2, 2, 3, 4, 5, 22, 7, 19}, []byte("hello")},
+			{[]byte{20, 2, 2, 3, 4, 5, 25, 17, 19}, []byte("world")},
+			{[]byte{30, 2, 2, 3, 4, 5, 30, 17, 19}, []byte("haha")},
+			{[]byte{40, 2, 2, 3, 4, 5, 122, 87, 19}, []byte("yessir")},
+			{[]byte{50, 2, 2, 3, 4, 5, 222, 97, 19}, []byte("tweet it")},
+		}
+
+		gTrie := gethTrie.NewEmpty(gethTrie.NewDatabase(rawdb.NewMemoryDatabase()))
+		for _, kv := range kvs {
+			trie.Put(kv.key, kv.value)
+			gTrie.Update(kv.key, kv.value)
+		}
+
+		rootHash := trie.Hash()
+		gHash := gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
+
+		gTrie.Delete([]byte{30, 2, 2, 3, 4, 5, 30, 17, 19})
+		assert.NoError(t, trie.Delete([]byte{30, 2, 2, 3, 4, 5, 30, 17, 19}))
+		_, err := trie.Get([]byte{30, 2, 2, 3, 4, 5, 30, 17, 19})
+		assert.Error(t, err)
+
+		rootHash = trie.Hash()
+		gHash = gTrie.Hash()
+		require.Equal(t, gHash, rootHash)
 	})
 }

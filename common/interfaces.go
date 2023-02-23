@@ -19,7 +19,7 @@ type Trie interface {
 	// Put inserts a key-value pair into the trie.
 	Put(key, value []byte) error
 	// Delete removes the values associated with the provided key from the trie.
-	Delete(key []byte)
+	Delete(key []byte) error
 }
 
 // MPT stands for "Merkle-Patricia Trie", which is a fusion of
