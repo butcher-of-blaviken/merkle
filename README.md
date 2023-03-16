@@ -1,6 +1,6 @@
 # merkle
 
-`merkle` is a small Go library that implements a [Merkle tree](https://en.wikipedia.org/wiki/Merkle_tree).
+`merkle` is a small Go library that implements several cryptographic constructs.
 
 Written primarily for educational purposes rather than production `:-)`.
 
@@ -10,33 +10,15 @@ Written primarily for educational purposes rather than production `:-)`.
 go get github.com/butcher-of-blaviken/merkle
 ```
 
-## Usage
-
-```golang
-tree, err := New([][]byte{
-    []byte("hello"),
-    []byte("world"),
-    []byte("today"),
-    []byte("yes"),
-})
-if err != nil {
-    panic(err)
-}
-
-// Get the merkle proof for "hello"
-proof, err := tree.ProofFor(0)
-if err != nil {
-    panic(err)
-}
-
-// verify the proof
-if !tree.Verify(proof, sha256.Sum256([]byte("hello")), tree.Root()) {
-    panic("couldn't verify merkle proof")
-}
-```
-
 ## Testing
 
 ```bash
 go test -cover
 ```
+
+## To-Do List
+
+- [ ] Block ciphers
+- [ ] Stream ciphers
+- [ ] Cryptographic hashes (SHA-1, SHA-256, etc.) 
+- [ ] Digital signature algorithsm (ECDSA, Schnorr, BLS, etc.)
